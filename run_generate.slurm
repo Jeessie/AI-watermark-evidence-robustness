@@ -8,6 +8,7 @@
 #SBATCH --account=xiangren_1987      # CSCI 544 course account (not your lab default)
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
+#SBATCH --constraint="a40|a100|l40s"   # torch 2.8+ (cu128) has no kernels for P100/V100
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=32G
 #SBATCH --time=02:00:00
