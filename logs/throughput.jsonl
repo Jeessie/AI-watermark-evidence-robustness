@@ -1,0 +1,2 @@
+{"gpu": "Tesla P100-PCIE-16GB", "model": "Qwen/Qwen2.5-1.5B", "source": "wm", "batch_size": 16, "texts": 10, "new_tokens": 6000, "seconds": 83.5, "tok_per_s": 71.8}
+{"gpu": "Tesla P100-PCIE-16GB", "model": "Qwen/Qwen2.5-1.5B", "source": "wm", "batch_size": 16, "texts": 190, "new_tokens": 114000, "seconds": 1038.5, "tok_per_s": 109.8}
