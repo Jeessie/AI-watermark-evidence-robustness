@@ -3,10 +3,10 @@ Step A2: generate KGW-watermarked continuations (GPU).
 
 Reads data/prompts.jsonl, writes data/wm.jsonl (or data/nowm.jsonl with --no_watermark).
 Each record: id, source, prompt_ids, token_ids (exactly --new_tokens tokens), text.
-Resumable: ids already in the output file are skipped, so a Colab disconnect loses at most one batch.
+Resumable: ids already in the output file are skipped, so a killed or timed-out job loses at most one batch.
 Throughput is appended to logs/throughput.jsonl (needed for the GPU-hour / cost estimate).
 
-Usage (Colab, from the project folder):
+Usage (on a GPU node, e.g. via run_generate.slurm on CARC, from the project folder):
   python generate.py --markllm_dir MarkLLM --limit 10      # pilot: 10 texts, check speed
   python generate.py --markllm_dir MarkLLM                 # all prompts
   python generate.py --markllm_dir MarkLLM --no_watermark --limit 50   # optional: unwatermarked model text
@@ -57,7 +57,7 @@ def main():
 
     tok = AutoTokenizer.from_pretrained(args.model)
     if device == "cuda":
-        dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16  # T4 has no bf16
+        dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16  # V100/P100 have no bf16
     else:
         dtype = torch.float32
     model = AutoModelForCausalLM.from_pretrained(args.model, torch_dtype=dtype).to(device).eval()
