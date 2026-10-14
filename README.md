@@ -9,6 +9,7 @@
 | Qwen2.5-1.5B（base） | https://huggingface.co/Qwen/Qwen2.5-1.5B | 生成模型，和 Tamim & Khan 原论文一致 |
 | KGW 原论文 | https://arxiv.org/abs/2301.10226 | γ=0.25, δ=2.0 的设置来源 |
 | Reliability of Watermarks（Kirchenbauer 2024） | https://arxiv.org/abs/2306.04634 | 改写后长文本仍可检测，写 related work 必须引用 |
+| Online LLM watermark detection via e-processes（Su, Wang, Zhao 2026） | https://arxiv.org/abs/2602.14286 | 序贯检测（e-process）方法的来源 |
 
 ## 文件
 
