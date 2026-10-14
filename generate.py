@@ -55,12 +55,19 @@ def main():
     device = args.device
     torch.manual_seed(args.seed)
 
-    tok = AutoTokenizer.from_pretrained(args.model)
+    # Load from the local snapshot path: with HF_HUB_OFFLINE=1, transformers 4.57 still tries
+    # to query the Hub when given a repo id (tokenizer regex patch) and crashes.
+    model_path = args.model
+    if not os.path.isdir(model_path):
+        from huggingface_hub import snapshot_download
+        model_path = snapshot_download(args.model, local_files_only=bool(os.environ.get("HF_HUB_OFFLINE")))
+
+    tok = AutoTokenizer.from_pretrained(model_path)
     if device == "cuda":
         dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16  # V100/P100 have no bf16
     else:
         dtype = torch.float32
-    model = AutoModelForCausalLM.from_pretrained(args.model, torch_dtype=dtype).to(device).eval()
+    model = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=dtype).to(device).eval()
 
     # vocab_size must match the logits dimension (151936 for Qwen2.5), not len(tokenizer).
     # Detection later must use the same value.
