@@ -1,4 +1,21 @@
-# A 组：数据准备 + KGW 水印生成
+# When Does AI Watermark Evidence Hold Up?
+
+midterm 范围：只做 KGW，小规模跑通"生成 → 攻击 → 检测 → 分析"整条 pipeline。进度见 [TODO.md](TODO.md)。
+
+## 分工
+
+| 组 | 人数 | 负责 | 输入 | 输出 |
+|---|---|---|---|---|
+| **A：数据和生成** | 2 | C4 数据准备；在 CARC 上生成 KGW 水印文本；记录速度（用于 GPU 时长和费用估计） | MarkLLM 自带的 C4 | `data/prompts.jsonl`、`data/human.jsonl`、`data/wm.jsonl`、`logs/throughput.jsonl` |
+| **B：攻击** | 2 | 用 Qwen2.5-1.5B-Instruct 逐句改写，攻击强度为改写 25% / 50% / 100% 的句子（三种强度嵌套）；质量过滤（语义相似度 ≥ 0.75）；人写文本做同样的攻击，作为误报对照 | `data/wm.jsonl`、`data/human.jsonl` | `data/attacked_wm.jsonl`、`data/attacked_human.jsonl`（含 `sim`、`token_edit_ratio`、`len_ratio`、`valid`） |
+| **C：检测和统计** | 1 | 提取逐 token 的 green flags（同一对 token 只计一次）；固定长度 z-test、peeking z-test、e-process；人写文本上的 FPR 检查；相同 FPR 下比较两种检测；画图 | A、B 的全部输出 | peeking 演示、长度曲线、长度 × 攻击强度热图、停止时间分布 |
+| **D：文献和 slides** | 1 | 读原论文（Tamim & Khan）、KGW、Kirchenbauer 2024、e-process 论文；写 related work；整理 GPU 时长和费用估计；做 midterm slides、组织排练 | 各组的结果图 | midterm slides |
+
+周五以后 A 组去帮 C 组做分析和画图。
+
+---
+
+以下是 **A 组**的说明。
 
 ## 资源链接
 
