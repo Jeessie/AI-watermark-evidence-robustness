@@ -4,3 +4,9 @@ __pycache__/
 .DS_Store
 .ipynb_checkpoints/
 .venv/
+.conda/
+.cache/
+.vscode/
+logs/attack_*
+data/attack_pilot*/
+feishu.md
