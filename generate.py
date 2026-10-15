@@ -20,6 +20,8 @@ import time
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, LogitsProcessorList
 
+from kgw_cpu import patch_kgw_cpu
+
 
 def load_jsonl(path):
     if not os.path.exists(path):
@@ -73,6 +75,7 @@ def main():
     # Detection later must use the same value.
     tc = TransformersConfig(model=model, tokenizer=tok, vocab_size=model.config.vocab_size, device=device)
     kgw = AutoWatermark.load("KGW", algorithm_config=wm_config, transformers_config=tc)
+    patch_kgw_cpu(kgw)  # draw green lists on CPU so detection matches on any GPU / machine (see kgw_cpu.py)
     processors = None if args.no_watermark else LogitsProcessorList([kgw.logits_processor])
 
     prompts = load_jsonl(args.prompts)
