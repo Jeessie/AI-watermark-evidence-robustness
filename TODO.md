@@ -2,7 +2,7 @@
 
 ## 现在（midterm 前）：先把 KGW pipeline 跑通
 - [x] A1：`prepare_data.py` 已跑完，`data/prompts.jsonl` 和 `data/human.jsonl` 已提交到仓库
-- [x] A2：`data/wm.jsonl` 已生成（200 条 × 600 token，P100 上 17 分钟；2 条有严重重复，C 组分析时注意）
+- [x] A2：`data/wm.jsonl` 已生成（200 条 × 600 token）。10/15 改成 CPU green list 后重新生成，任何机器检测结果一致（见 README「已经验证过的」）
 - [ ] B：改写攻击脚本（改写 25% / 50% / 100% 的句子）+ 语义相似度过滤
 - [ ] C：逐 token 的 green flags → 固定长度 z-test / peeking z-test / e-process
 - [ ] C：e-process 只对第一次出现的 (前一个 token, 当前 token) 计分（去重，几行代码）

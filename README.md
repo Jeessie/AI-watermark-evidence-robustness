@@ -34,7 +34,10 @@ midterm 范围：只做 KGW，小规模跑通"生成 → 攻击 → 检测 → �
 configs/KGW_g025.json   KGW 参数：γ=0.25, δ=2.0, z 阈值 4（MarkLLM 默认 γ=0.5，这里改成了 0.25）
 prepare_data.py         A1：从 C4 构造 prompt 和人写文本（不需要 GPU）
 generate.py             A2：生成带水印文本（需要 GPU），记录速度，跑 sanity check
+kgw_cpu.py              让 KGW 的 green list 在 CPU 上生成 → 任何机器 / 显卡上检测结果都一样（生成和检测都必须用）
+verify_kgw.py           不加载模型，对整个文件重新检测，输出 z 统计和逐 token 结果的指纹 flags_md5（用来自查环境）
 run_generate.slurm      在 CARC 上提交 generate.py 的 Slurm 脚本
+setup_env.sh            在 CARC 上建 group4 共享环境（torch 2.5.1 + cu121，P100/V100/新卡都能跑）
 data/                   A1 的输出（已提交），A2 的输出也写在这里
 ```
 
@@ -42,33 +45,23 @@ data/                   A1 的输出（已提交），A2 的输出也写在这�
 
 A1 的数据（`data/prompts.jsonl`、`data/human.jsonl`）**已经提交在仓库里**，clone 下来就能直接用，不用再跑 `prepare_data.py`。重跑也会得到完全相同的数据（固定 seed；MarkLLM 自带的 `c4.json` 和 HF 上 realnewslike validation 的前 13,863 篇一致）。
 
+group4 已经准备好了**共享环境、共享模型缓存和仓库副本**，组员不用下载模型、不用配环境：
+
 ```bash
-# 1. 登录 CARC，clone 仓库（建议放在 /project 下，home 配额小）
+# 1. 登录 CARC（校外先连 USC VPN；域名解析不了时可以直接用 IP：ssh <netid>@10.72.0.14）
 ssh <netid>@discovery.usc.edu
-git clone https://github.com/Jeessie/AI-watermark-evidence-robustness.git
-cd AI-watermark-evidence-robustness
+cd /project2/xiangren_1987/group4/AI-watermark-evidence-robustness
 
-# 2. 拿 MarkLLM 源码（只用 KGW，只需要 torch + transformers，不要 pip install 它的 requirements.txt）
-git clone --depth 1 https://github.com/THU-BPM/MarkLLM.git
+# 2. 用共享环境跑脚本（只做 CPU 小任务时可以在登录节点上跑）
+/project2/xiangren_1987/group4/envs/wm/bin/python verify_kgw.py data/wm.jsonl data/human.jsonl
 
-# 3. 建环境（第一次即可）
-module load python          # 或 module load conda，看 `module avail` 里有什么
-python -m venv .venv && source .venv/bin/activate
-pip install torch transformers datasets
-
-# 4. 把 run_generate.slurm 里的 --account=CHANGE_ME 改成自己的项目账号（用 `myaccount` 查）
-
-# 5. A2 pilot：先生成 10 条，看速度和 sanity check（输出在 logs/slurm-<jobid>.out）
-sbatch run_generate.slurm --limit 10
-
-# 6. 没问题就跑完 200 条（作业被杀或超时后重新提交会从断点继续）
-sbatch run_generate.slurm
-
-# 7. （可选）不加水印的模型文本，作为额外对照
-sbatch run_generate.slurm --no_watermark --limit 50
+# 3. GPU 任务用 Slurm 提交（课程账号、共享环境、共享模型缓存都已经在脚本里设置好）
+sbatch run_generate.slurm --limit 10      # pilot
+sbatch run_generate.slurm                 # 全部 200 条（断点续跑）
+sbatch run_generate.slurm --no_watermark  # 不加水印的模型文本，作为额外对照
 ```
 
-`squeue --me` 查看排队状态。交互式调试可以用 `salloc --partition=gpu --gres=gpu:1 --time=1:00:00 --account=<账号>`，拿到节点后直接 `python generate.py --limit 10`。
+`squeue --me` 查看排队状态。**不要指定卡型**：A100/A40 要排很久，不指定的话通常几秒就能分到 P100/V100。
 
 （A1 如需重跑，不需要 GPU：`python prepare_data.py`。）
 
@@ -86,6 +79,8 @@ prompt 和人写文本来自**不同的文章**，不会重叠。
 
 ## 给 B 组和 C 组的注意事项
 
+- **检测前必须调用 `patch_kgw_cpu(kgw)`**（见 `kgw_cpu.py`）。MarkLLM 原版在 GPU 上生成 green list，而 `torch.randperm` 在 P100 / V100 / A40 上对同一个种子给出的排列各不相同，换一张卡检测，水印文本的 z 会掉到 0 附近。补丁改成在 CPU 上生成（不同机器、torch 2.5–2.14 结果都一样），算法和 MarkLLM 原版完全相同。
+- **自查环境**：`python verify_kgw.py data/wm.jsonl data/human.jsonl`，`flags_md5` 应该是 `wm=5d98d773dd`、`human=6375f943cb`。对不上说明 green list 算错了。
 - **检测时要用 `prompt_ids` 的最后一个 token 作为前缀**：KGW 用前一个 token 决定 green list，所以第 1 个 token 的 green list 由 prompt 最后一个 token 决定。写法参考 `generate.py` 末尾的 sanity check：
   `kgw.utils.score_sequence(torch.tensor(prompt_ids[-1:] + token_ids))` 返回 `(z, flags)`，`flags[0]` 是前缀，记为 -1，后面每一位是 1（green）或 0（red）。
 - **`vocab_size` 必须用 `model.config.vocab_size`（151936）**，不能用 `len(tokenizer)`。检测时也要用同一个值，否则 green list 对不上。
@@ -94,14 +89,13 @@ prompt 和人写文本来自**不同的文章**，不会重叠。
 
 ## 已经验证过的
 
-本地 CPU 冒烟测试（Qwen2.5-0.5B，2 条，150 token）：
+`data/wm.jsonl`（CPU green list 版本，2026-10-15 重新生成，P100 上 20 分钟）用 `verify_kgw.py` 在四个环境上检测，结果**逐 token 完全一致**：
 
-```
-wm     z=  4.24  green=0.40
-wm     z= 13.11  green=0.71
-human  z=  0.57  green=0.26
-human  z= -2.36  green=0.21
-human  z= -2.64  green=0.20
-```
+| 环境 | wm（200 条） | human（500 条） |
+|---|---|---|
+| Mac CPU，torch 2.14.1 | z 13.39 / 21.50 / 36.20（最小 / 中位数 / 最大），200 条 z>4，`5d98d773dd` | z −4.90 / −0.75 / 2.73，0 条 z>4，`6375f943cb` |
+| CARC P100，torch 2.5.1 | 同上 | 同上 |
+| CARC V100，torch 2.5.1 | 同上 | 同上 |
+| CARC A100，torch 2.5.1 | 同上 | 同上 |
 
-水印文本的 z 远高于人写文本，人写文本的 green 比例约等于 γ=0.25，说明 pipeline 是对的。第一条水印文本只有 150 token，z 刚过 4，这正好说明长度对检测很重要。
+平均 green 比例：水印文本 0.627，人写文本 0.237（γ = 0.25）。人写文本略低于 γ，是因为常见词组（如 "of the"）每次出现的 green/red 结果都一样，会放大这把 key 的偶然偏差，C 组做去重分析时要关注。
