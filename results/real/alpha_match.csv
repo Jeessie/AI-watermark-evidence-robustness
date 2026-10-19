@@ -1,0 +1,4 @@
+file,eprocess,actual_fpr,z_threshold,tpr_eprocess,tpr_z_fixed
+flags_wm.jsonl,eprocess_avg,0.004,2.3578,1.0,1.0
+flags_wm.jsonl,eprocess_bet,0.002,2.546,1.0,1.0
+flags_wm.jsonl,eprocess_betmix,0.008,1.9814,1.0,1.0

@@ -1,2 +1,5 @@
 {"gpu": "Tesla P100-PCIE-16GB", "model": "Qwen/Qwen2.5-1.5B", "source": "wm", "batch_size": 16, "texts": 10, "new_tokens": 6000, "seconds": 83.5, "tok_per_s": 71.8}
 {"gpu": "Tesla P100-PCIE-16GB", "model": "Qwen/Qwen2.5-1.5B", "source": "wm", "batch_size": 16, "texts": 190, "new_tokens": 114000, "seconds": 1038.5, "tok_per_s": 109.8}
+{"gpu": "NVIDIA GeForce RTX 3060 Ti", "model": "models/Qwen2.5-1.5B-Instruct", "source": "wm", "batch_size": 2, "texts": 2, "new_tokens": 1200, "seconds": 44.2, "tok_per_s": 27.1}
+{"gpu": "NVIDIA GeForce RTX 3060 Ti", "model": "models/Qwen2.5-1.5B-Instruct", "source": "wm", "batch_size": 4, "texts": 20, "new_tokens": 12000, "seconds": 204.8, "tok_per_s": 58.6}
+{"gpu": "NVIDIA GeForce RTX 3060 Ti", "model": "models/Qwen2.5-1.5B-Instruct", "source": "nowm", "batch_size": 8, "texts": 50, "new_tokens": 30000, "seconds": 230.1, "tok_per_s": 130.4}

@@ -35,6 +35,8 @@ configs/KGW_g025.json   KGW 参数：γ=0.25, δ=2.0, z 阈值 4（MarkLLM 默�
 prepare_data.py         A1：从 C4 构造 prompt 和人写文本（不需要 GPU）
 generate.py             A2：生成带水印文本（需要 GPU），记录速度，跑 sanity check
 kgw_cpu.py              让 KGW 的 green list 在 CPU 上生成 → 任何机器 / 显卡上检测结果都一样（生成和检测都必须用）
+c_eprocess/             C 组：flags 抽取、固定长度 z / peeking z / e-process 三条检测、FPR 与停止时间评估
+docs/C_report.md        C 组完整报告：方法、数据、结果、讨论、局限、复现命令
 verify_kgw.py           不加载模型，对整个文件重新检测，输出 z 统计和逐 token 结果的指纹 flags_md5（用来自查环境）
 run_generate.slurm      在 CARC 上提交 generate.py 的 Slurm 脚本
 setup_env.sh            在 CARC 上建 group4 共享环境（torch 2.5.1 + cu121，P100/V100/新卡都能跑）
@@ -64,6 +66,50 @@ sbatch run_generate.slurm --no_watermark  # 不加水印的模型文本，作为
 `squeue --me` 查看排队状态。**不要指定卡型**：A100/A40 要排很久，不指定的话通常几秒就能分到 P100/V100。
 
 （A1 如需重跑，不需要 GPU：`python prepare_data.py`。）
+
+## 本地跑通（uv + API/ollama，不需要 CARC）
+
+检测和统计不需要大模型：green list 只用 token id 在 CPU 上算（见 `kgw_cpu.py`）。
+攻击和生成各需要一个模型，但都可以换成小模型或 API，所以笔记本上就能把
+`生成 → 攻击 → 检测 → 分析` 整条链跑一遍。
+
+```bash
+bash setup_local.sh                    # uv 建 .venv（torch+transformers+MarkLLM）+ 下载 Qwen2.5-1.5B-Instruct
+.venv/Scripts/python.exe verify_kgw.py data/wm.jsonl data/human.jsonl
+# 必须打印 flags_md5=5d98d773dd（wm）和 6375f943cb（human），否则 green list 算错了
+
+# C1 → C4/C6 → C7（约 1 分钟 + 8 分钟 + 10 秒）
+.venv/Scripts/python.exe c_eprocess/extract_flags.py data/wm.jsonl data/human.jsonl
+.venv/Scripts/python.exe c_eprocess/run_eval.py --null data/flags_human.jsonl --wm data/flags_wm.jsonl --out results/real
+.venv/Scripts/python.exe c_eprocess/make_plots.py --dir results/real
+
+# 攻击数据有两条臂（flags 已给出，只想复现分析不用重跑）：
+#   主臂 = B 组交付的 data/attacked_wm.jsonl / data/attacked_human.jsonl（200 篇/档，已入库）
+#   强臂 = 下面的 attack_rewrite.py，走 dtens API 的 deepseek-v4.1-flash（20 篇/档）
+.venv/Scripts/python.exe c_eprocess/extract_flags.py data/attacked_wm.jsonl data/attacked_human.jsonl
+export DTENS_API_KEY=sk-...            # Windows: set DTENS_API_KEY=sk-...
+.venv/Scripts/python.exe c_eprocess/attack_rewrite.py data/wm.jsonl data/human.jsonl \
+    --out data/attacked_api.jsonl --limit 20
+.venv/Scripts/python.exe c_eprocess/extract_flags.py data/attacked_api.jsonl \
+    --tokenizer models/Qwen2.5-1.5B-Instruct --split      # --split 写出 _wm / _human 两份
+
+# 攻击 → 检测 → 图（两臂一起跑，约 8 分钟）
+.venv/Scripts/python.exe c_eprocess/attack_strength.py data/attacked_wm.jsonl data/attacked_api.jsonl \
+    --orig data/wm.jsonl --out results/real/attack_strength.csv
+.venv/Scripts/python.exe c_eprocess/run_eval.py --null data/flags_human.jsonl --wm data/flags_wm.jsonl \
+    --attacked data/flags_attacked_wm.jsonl data/flags_attacked_human.jsonl \
+               data/flags_attacked_api_wm.jsonl data/flags_attacked_api_human.jsonl \
+    --out results/real
+.venv/Scripts/python.exe c_eprocess/make_plots.py --dir results/real   # fig3 = 主臂，fig3_heatmap_strong = 强臂
+```
+
+本地生成（可选，用来验证 `generate.py` 这条路也通）：
+`.venv/Scripts/python.exe generate.py --model models/Qwen2.5-1.5B-Instruct --limit 20 --out data/wm_local.jsonl`
+（`data/wm.jsonl` 本身也是 Qwen2.5-1.5B 生成的（CARC P100，110 tok/s），本地用的是 Instruct 版本、
+同规模，所以水印强度直接可比：green 比例 0.629 vs 0.627，z ≈ 22。）
+
+实测速度（RTX 3060 Ti 8GB，torch 2.6.0+cu124）：生成 27–59 tok/s（batch 2–4）；`extract_flags` 700 条 1 分钟（CPU）；
+`run_eval` 全量 5 种 e-process × dedup 开关约 8 分钟（OG 最慢）；改写 ~1.3 s/句（API）、~0.5 s/句（本地 1.5B）。
 
 ## 输出
 

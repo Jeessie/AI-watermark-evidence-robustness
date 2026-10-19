@@ -1,4 +1,5 @@
 MarkLLM/
+models/
 __pycache__/
 *.pyc
 .DS_Store
@@ -7,6 +8,17 @@ __pycache__/
 .conda/
 .cache/
 .vscode/
-logs/attack_*
+
+# generated artefacts (flags / fake fixtures / csv outputs)
+data/fake/
+data/flags_*.jsonl
+data/wm_local.jsonl
+data/nowm_local.jsonl
+data/attacked.jsonl
+data/attacked_api.jsonl
 data/attack_pilot*/
+results/fake/
+logs/attack_*
+
+# 第三方文档的本地副本（不便入库）
 feishu.md
